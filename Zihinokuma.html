@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zihin Okuma Sayı Tahmini Oyunu</title>
+    
+    <!-- PWA Manifest Bağlantısı: Uygulama gibi yüklenmesini sağlar -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        body {
+            font-family: "Inter", sans-serif;
+            /* Arka plan görseli yerine koyu, estetik bir gradyan/renk kullanıldı */
+            background: linear-gradient(135deg, #1e3a8a, #0c4a6e); 
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            position: relative;
+            z-index: 0; 
+        }
+        /* Arka planın üzerine hafif şeffaf bir katman, görsel olmasa da derinlik katıyor */
+        body::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4); /* Koyu, %40 şeffaflık */
+            z-index: -1; 
+        }
+        #app {
+            background-color: rgba(255, 255, 255, 0.95); /* Hafif şeffaf beyaz kutu */
+        }
+        @keyframes reveal {
+            0% { transform: scale(0.5); opacity: 0; filter: blur(10px); }
+            50% { transform: scale(1.1); opacity: 1; filter: blur(0px); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .result-reveal {
+            animation: reveal 0.6s ease-out forwards;
+        }
+        .result-text-bg {
+            background: linear-gradient(135deg, #4f46e5, #9333ea);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* Dil Seçim Butonu Stilleri */
+        .lang-button {
+            padding: 4px 8px;
+            border-radius: 9999px;
+            font-size: 0.875rem; 
+            font-weight: 600; 
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+            white-space: nowrap; 
+        }
+        .lang-button.active {
+            background-color: #4f46e5;
+            color: white;
+            box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.5);
+            border-color: #4f46e5;
+        }
+        .lang-button:not(.active) {
+            background-color: #fff;
+            color: #4f46e5;
+            border-color: #4f46e5;
+        }
+        .lang-button:not(.active):hover {
+            background-color: #eef2ff;
+        }
+        .instruction-fade-out { opacity: 0; }
+        .instruction-fade-in { opacity: 1; transition: opacity 0.3s; }
+    </style>
+</head>
+<body>
+
+    <!-- Ana Konteyner -->
+    <div id="app" class="w-full max-w-lg p-8 sm:p-10 rounded-3xl shadow-2xl border-4 border-indigo-600/10 transition-all duration-300 relative z-10">
+
+        <!-- Dil Seçimi -->
+        <div class="flex flex-wrap justify-center gap-2 mb-6 border-b pb-4 border-gray-100">
+            <button class="lang-button active" data-lang="TR" onclick="setLanguage('TR')">
+                Türkçe
+            </button>
+            <button class="lang-button" data-lang="AZ" onclick="setLanguage('AZ')">
+                Azərbaycan Dili
+            </button>
+            <button class="lang-button" data-lang="AZ_CYR" onclick="setLanguage('AZ_CYR')">
+                Азәрбајҹан (Kiril)
+            </button>
+            <button class="lang-button" data-lang="RU" onclick="setLanguage('RU')">
+                Русский
+            </button>
+            <button class="lang-button" data-lang="EN" onclick="setLanguage('EN')">
+                English
+            </button>
+        </div>
+
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">
+                <span class="result-text-bg" id="titleText">Zihin Okuma Sayı Tahmini Oyunu</span>
+            </h1>
+            <p id="subtitleText" class="hidden"></p>
+        </header>
+
+        <!-- İçerik Alanı -->
+        <div class="space-y-6">
+            
+            <!-- Adım Metni -->
+            <div class="min-h-[150px] flex items-center justify-center bg-indigo-50 p-6 rounded-2xl border-2 border-indigo-500/50 shadow-inner">
+                <p id="instructionText" class="text-2xl font-semibold text-gray-800 text-center leading-relaxed instruction-fade-out">
+                    <!-- Talimat metni buraya JavaScript ile yüklenecek -->
+                </p>
+            </div>
+
+            <!-- Buton -->
+            <div class="pt-4">
+                <button id="nextButton" 
+                        class="w-full py-3.5 px-6 bg-indigo-600 text-white font-bold text-xl rounded-xl shadow-lg shadow-indigo-500/50 hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition transform duration-200 active:scale-[0.98] disabled:bg-gray-400 disabled:shadow-none"
+                        onclick="nextStep()">
+                    Başla
+                </button>
+            </div>
+
+            <!-- Sonuç Alanı -->
+            <div id="resultBox" class="text-center p-6 rounded-2xl hidden bg-emerald-100 border border-emerald-300">
+                <p class="text-xl font-bold text-emerald-800" id="resultTitleText">Tahminim Doğru Çıktı!<br>Bulunan sonuç:</p>
+                <p id="finalResult" class="text-7xl font-extrabold result-text-bg mt-3">
+                    <!-- Dinamik sonuç buraya gelecek -->
+                </p>
+            </div>
+            
+            <!-- Yeniden Başlat Butonu -->
+            <div id="resetButtonContainer" class="hidden pt-2">
+                <button onclick="resetGame()" 
+                        id="resetButton"
+                        class="w-full py-3 px-6 bg-gray-500 text-white font-bold text-lg rounded-xl shadow-md hover:bg-gray-600 transition transform duration-150 active:scale-95 focus:outline-none">
+                    Yeni Bir Akıl Okuma
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // PWA: Service Worker Kaydı
+        // APK'ya dönüştürürken uygulamanın çevrimdışı çalışmasını sağlar
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js') 
+                    .then(registration => console.log('Service Worker başarıyla kaydedildi:', registration.scope))
+                    .catch(error => console.error('Service Worker kaydı başarısız:', error));
+            });
+        }
+
+        // DOM elementleri
+        const instructionText = document.getElementById('instructionText');
+        const nextButton = document.getElementById('nextButton');
+        const resultBox = document.getElementById('resultBox');
+        const finalResult = document.getElementById('finalResult');
+        const titleText = document.getElementById('titleText');
+        const resultTitleText = document.getElementById('resultTitleText');
+        const resetButtonContainer = document.getElementById('resetButtonContainer');
+        
+        // Oyun durumu
+        let currentStep = 0;
+        let selectedTrick = null;
+        let currentLang = 'TR'; 
+
+        // --- SİHİRLİ HİLELER LİSTESİ ---
+        const allTricks = [
+            // TYPE 1: (X*2 + C) / 2 - X = R (R = C/2) - Sabit Sonuç Hilesi
+            { id: '1a', stepsKey: 'type1', maxSteps: 4, R: 5, C: 10 }, 
+            { id: '1b', stepsKey: 'type1', maxSteps: 4, R: 7, C: 14 }, 
+            { id: '1c', stepsKey: 'type1', maxSteps: 4, R: 12, C: 24 }, 
+            
+            // TYPE 2: X*9, rakamları topla ve 9 çıkar = 9 (İki basamaklı sayı garantisi için)
+            { id: '2a', stepsKey: 'type2', maxSteps: 4, R: 9 }, 
+            
+            // TYPE 3: (X*5 - 25) / 5 + 5 = X (Tersine Mühendislik Hilesi)
+            { id: '3a', stepsKey: 'type3', maxSteps: 5, R: 'initial' },
+            
+            // TYPE 4: (X*4 + 8) / 2 - (X*2) = 4 (Sabit Sonuç Hilesi)
+            { id: '4a', stepsKey: 'type4', maxSteps: 4, R: 4 }, 
+        ];
+
+        const translations = {
+            TR: {
+                title: "Zihin Okuma Sayı Tahmini Oyunu",
+                resultTitle: "Tahminim Doğru Çıktı! Bulunan sonuç:",
+                nextButtonStart: "Başla",
+                nextButtonContinue: "Sıradaki Adım",
+                resetButtonText: "Yeni Bir Akıl Okuma",
+                trickFail: "Hata oluştu. Lütfen tekrar deneyin.",
+                general_step0: "Aklında bir tam sayı tut. Bunu kimseye söyleme. Hazır olduğunda devam et.", 
+                
+                type1_step1: "Tuttuğun sayıyı 2 ile çarp.",
+                type1_step2: "Sonuca ${C} ekle.",
+                type1_step3: "Çıkan sonucu 2'ye böl.",
+                type1_step4: "Bulduğun sonuçtan başta tuttuğun sayıyı çıkar.",
+                
+                type2_step1: "Tuttuğun sayıyı 9 ile çarp. (Eğer tek basamaklı bir sayı tuttuysan, bu hile çalışmayabilir.)",
+                type2_step2: "Çıkan sonucun rakamlarını topla. (Örn: 45 ise 4+5=9)",
+                type2_step3: "Bu toplamdan 9 çıkar.",
+                type2_step4: "Şimdi elimizde bir sayı var. O sayı...",
+                
+                type3_step1: "Tuttuğun sayıyı 5 ile çarp.",
+                type3_step2: "Sonuçtan 25 çıkar.",
+                type3_step3: "Elde ettiğin sayıyı 5'e böl.",
+                type3_step4: "Şimdi sonuca 5 ekle.",
+                type3_step5: "Sonucun, başta tuttuğun sayı olması gerekiyor. Kontrol edelim...",
+                
+                type4_step1: "Tuttuğun sayıyı 4 ile çarp.",
+                type4_step2: "Sonuca 8 ekle.",
+                type4_step3: "Elde ettiğin sayıyı 2'ye böl ve başta tuttuğun sayının 2 katını bu sonuçtan çıkar.",
+                type4_step4: "Tüm adımları doğru uyguladıysan, elindeki sonuç kesinlikle...",
+            },
+            AZ: {
+                title: "Zehin Oxuma Rəqəm Təxmini Oyunu",
+                resultTitle: "Təxminim Düz Çıxdı! Tapılan nəticə:",
+                nextButtonStart: "Başla",
+                nextButtonContinue: "Növbəti Addım",
+                resetButtonText: "Yeni Bir Zehin Oxuma",
+                trickFail: "Xəta baş verdi. Zəhmət olmasa yenidən cəhd edin.",
+                general_step0: "Ağlınızda bir tam rəqəm tutun. Bunu heç kimə söyləməyin. Hazır olduğunuzda davam edin.",
+                
+                type1_step1: "Tutduğunuz rəqəmi 2-yə vurun.",
+                type1_step2: "Nəticəyə ${C} əlavə edin.",
+                type1_step3: "Alınan nəticəni 2-yə bölün.",
+                type1_step4: "Tapdığınız nəticədən əvvəldə tutduğunuz rəqəmi çıxın.",
+                
+                type2_step1: "Tutduğunuz rəqəmi 9-a vurun. (Əgər tək rəqəmli bir rəqəm tutdunuzsa, bu hiylə işləməyə bilər.)",
+                type2_step2: "Alınan nəticənin rəqəmlərini cəmləyin. (Məs: 45 isə 4+5=9)",
+                type2_step3: "Bu cəmdən 9 çıxın.",
+                type2_step4: "İndi əlimizdə bir rəqəm var. Bu rəqəm...",
+                
+                type3_step1: "Tutduğunuz rəqəmi 5-ə vurun.",
+                type3_step2: "Nəticədən 25 çıxın.",
+                type3_step3: "Əldə etdiyiniz rəqəmi 5-ə bölün.",
+                type3_step4: "İndi nəticəyə 5 əlavə edin.",
+                type3_step5: "Nəticəniz, əvvəldə tutduğunuz rəqəm olmalıdır. Yoxlayaq...",
+                
+                type4_step1: "Tutduğunuz rəqəmi 4-ə vurun.",
+                type4_step2: "Nəticəyə 8 əlavə edin.",
+                type4_step3: "Əldə etdiyiniz rəqəmi 2-yə bölün və əvvəldə tutduğunuz rəqəmin 2 qatını bu nəticədən çıxın.",
+                type4_step4: "Bütün addımları düzgün tətbiq etdinizsə, əlinizdəki nəticə mütləq...",
+            },
+            AZ_CYR: {
+                title: "Зеһин Охума Рәгәм Тәхмини Ојуну",
+                resultTitle: "Тәхмимим Дүз Чыхды! Тапылан нәтиҹә:",
+                nextButtonStart: "Башла",
+                nextButtonContinue: "Нөвбәти Аддым",
+                resetButtonText: "Јени Бир Зеһин Охума",
+                trickFail: "Хәта баш верди. Зәһмәт олмаса јенидән ҹәһд един.",
+                general_step0: "Ағлынызда бир там рәгәм тутун. Буну һеч кимә сөјләмәјин. Һазыр олдуғунузда давам един.",
+                
+                type1_step1: "Тутдуғунуз рәгәми 2-јә вурун.",
+                type1_step2: "Нәтиҹәјә ${C} әлавә един.",
+                type1_step3: "Алынан нәтиҹәни 2-јә бөлун.",
+                type1_step4: "Тапдығыныз нәтиҹәдән әввәлдә тутдуғунуз рәгәми чыхын.",
+                
+                type2_step1: "Тутдуғунуз рәгәми 9-а вурун. (Әҝәр тәк рәгәмли бир рәгәм тутдунузса, бу һијлә ишләмәјә биләр.)",
+                type2_step2: "Алынан нәтиҹәнин рәгәмләрини ҹәмләјин. (Мәс: 45 исә 4+5=9)",
+                type2_step3: "Бу ҹәмдән 9 чыхын.",
+                type2_step4: "Инди әлимиздә бир рәгәм вар. Бу рәгәм...",
+                
+                type3_step1: "Тутдуғунуз рәгәми 5-ә вурун.",
+                type3_step2: "Нәтиҹәдән 25 чыхын.",
+                type3_step3: "Әлдә етдијиниз рәгәми 5-ә бөлун.",
+                type3_step4: "Инди нәтиҹәјә 5 әлавә един.",
+                type3_step5: "Нәтиҹәниз, әввәлдә тутдуғунуз рәгәм олмалыдыр. Јохлајаг...",
+                
+                type4_step1: "Тутдуғунуз рәгәми 4-ә вурун.",
+                type4_step2: "Нәтиҹәјә 8 әлавә един.",
+                type4_step3: "Әлдә етдијиниз рәгәми 2-јә бөлун вә әввәлдә тутдуғунуз рәгәмин 2 гатыны бу нәтиҹәдән чыхын.",
+                type4_step4: "Бүтүн аддымлары дүзҝүн тәтбиг етдинизсә, әлиниздәки нәтиҹә мүтләг...",
+            },
+            RU: {
+                title: "Игра Угадывание Числа (Чтение Мыслей)",
+                resultTitle: "Моя догадка верна! Найденный результат:",
+                nextButtonStart: "Начать",
+                nextButtonContinue: "Следующий Шаг",
+                resetButtonText: "Новое Чтение Мыслей",
+                trickFail: "Произошла ошибка. Пожалуйста, попробуйте снова.",
+                general_step0: "Загадайте любое целое число. Никому не говорите. Когда будете готовы, продолжите.", 
+                
+                type1_step1: "Умножьте загаданное число на 2.",
+                type1_step2: "Прибавьте ${C} к результату.",
+                type1_step3: "Разделите полученный результат на 2.",
+                type1_step4: "Вычтите из полученного результата ваше исходное число.",
+                
+                type2_step1: "Умножьте загаданное число на 9. (Если вы загадали однозначное число, этот фокус может не сработать.)",
+                type2_step2: "Сложите цифры полученного результата. (Например, если 45, то 4+5=9)",
+                type2_step3: "Вычтите 9 из этой суммы.",
+                type2_step4: "Теперь у нас есть число. Это число...",
+                
+                type3_step1: "Умножьте загаданное число на 5.",
+                type3_step2: "Вычтите 25 из результата.",
+                type3_step3: "Разделите полученное число на 5.",
+                type3_step4: "Теперь прибавьте 5 к результату.",
+                type3_step5: "Ваш результат должен быть равен исходному числу. Давайте проверим...",
+                
+                type4_step1: "Умножьте загаданное число на 4.",
+                type4_step2: "Прибавьте 8 к результату.",
+                type4_step3: "Разделите полученное число на 2 и вычтите из этого результата удвоенное исходное число.",
+                type4_step4: "Если вы правильно выполнили все шаги, ваш результат — это определенно...",
+            },
+            EN: {
+                title: "Mind Reading Number Prediction Game",
+                resultTitle: "My Prediction Was Correct! Found result:",
+                nextButtonStart: "Start",
+                nextButtonContinue: "Next Step",
+                resetButtonText: "New Mind Reading",
+                trickFail: "An error occurred. Please try again.",
+                general_step0: "Think of any whole number. Don't tell anyone. Continue when you are ready.",
+                
+                type1_step1: "Multiply the number you thought of by 2.",
+                type1_step2: "Add ${C} to the result.",
+                type1_step3: "Divide the resulting number by 2.",
+                type1_step4: "Subtract the original number you thought of from the result.",
+                
+                type2_step1: "Multiply the number you thought of by 9. (If you thought of a single-digit number, this trick may not work.)",
+                type2_step2: "Add the digits of the resulting number. (E.g., if 45, then 4+5=9)",
+                type2_step3: "Subtract 9 from this sum.",
+                type2_step4: "Now we have a number. That number is...",
+                
+                type3_step1: "Multiply the number you thought of by 5.",
+                type3_step2: "Subtract 25 from the result.",
+                type3_step3: "Divide the number you obtained by 5.",
+                type3_step4: "Now add 5 to the result.",
+                type3_step5: "Your result should be equal to your starting number. Let's check...",
+                
+                type4_step1: "Multiply the number you thought of by 4.",
+                type4_step2: "Add 8 to the result.",
+                type4_step3: "Divide the number you obtained by 2 and subtract twice your original number from this result.",
+                type4_step4: "If you have followed all steps correctly, your result is definitely...",
+            }
+        };
+
+        function setLanguage(lang) {
+            currentLang = lang;
+            const t = translations[currentLang];
+            document.querySelectorAll('.lang-button').forEach(btn => {
+                if (btn.getAttribute('data-lang') === lang) { btn.classList.add('active'); } else { btn.classList.remove('active'); }
+            });
+            titleText.textContent = t.title;
+            resultTitleText.innerHTML = t.resultTitle.replace('\n', '<br>'); // Başlıkta <br> kullanımı
+            
+            // Eğer oyun sonlanmışsa, Yeniden Başlat butonunu güncelle
+            if (resetButtonContainer.classList.contains('hidden') === false) {
+                 document.getElementById('resetButton').textContent = t.resetButtonText;
+            }
+
+            // Oyunun hangi aşamasında olduğumuza bakarak butonu ve talimatı güncelle
+            if (currentStep === 0) {
+                 instructionText.textContent = t.general_step0; 
+                 nextButton.textContent = t.nextButtonStart;
+            } else if (selectedTrick) { 
+                 nextButton.textContent = t.nextButtonContinue;
+                 updateInstruction(selectedTrick, false); // Sadece metni güncelle, animasyon yapma
+            }
+        }
+
+        function nextStep() {
+            if (currentStep === 0) { startGame(); } 
+            else if (currentStep < selectedTrick.maxSteps) { 
+                currentStep++; 
+                updateInstruction(selectedTrick, true); 
+            } 
+            else { 
+                calculateResult(selectedTrick); 
+            }
+        }
+
+        function startGame() {
+            // Rastgele bir hile seç
+            const randomIndex = Math.floor(Math.random() * allTricks.length);
+            selectedTrick = allTricks[randomIndex];
+            currentStep = 1;
+            
+            // UI durumunu ayarla
+            resultBox.classList.add('hidden');
+            instructionText.classList.remove('instruction-fade-out');
+            nextButton.textContent = translations[currentLang].nextButtonContinue;
+            nextButton.disabled = false;
+            resetButtonContainer.classList.add('hidden');
+            
+            // İlk adımı göster
+            updateInstruction(selectedTrick, true);
+        }
+
+        function updateInstruction(trick, animate = true) {
+            const t = tra
